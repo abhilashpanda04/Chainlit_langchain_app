@@ -1,1 +1,5 @@
 .venv/*
+.chainlit/*
+__pycache__/*
+.env
+poetry.lock
