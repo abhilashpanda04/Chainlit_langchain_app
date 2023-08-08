@@ -13,6 +13,7 @@ import PyPDF2
 from io import BytesIO
 from dotenv import load_dotenv
 import sys
+from prompt import system_template
 
 sys.path.append(os.path.abspath('.'))
 
@@ -35,22 +36,6 @@ DATABASES = {
     }
 }
 
-
-system_template = """Use the following pieces of context to answer the users question.
-If you don't know the answer, just say that you don't know, don't try to make up an answer.
-ALWAYS return a "SOURCES" part in your answer.
-The "SOURCES" part should be a reference to the source of the document from which you got your answer.
-
-Example of your response should be:
-
-```
-The answer is foo
-SOURCES: xyz
-```
-
-Begin!
-----------------
-{summaries}"""
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
 
@@ -175,6 +160,8 @@ async def on_chat_start():
             chain_type="stuff",
             retriever=docsearch.as_retriever(max_token_limits=4097)
         )
+
+
 
 
         #######if only pdf load######
