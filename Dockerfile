@@ -3,7 +3,7 @@ FROM python:3.11-slim-buster as builder
 RUN apt-get update && apt-get install -y git
 
 RUN pip install poetry==1.4.2
-
+RUN apt-get install build-essential -y
 ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=1 \
     POETRY_VIRTUALENVS_CREATE=1 \
@@ -17,6 +17,7 @@ WORKDIR /app
 
 COPY pyproject.toml poetry.lock ./
 
+RUN export HNSWLIB_NO_NATIVE=1
 RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
 
 # The runtime image, used to just run the code provided its virtual environment
@@ -27,8 +28,8 @@ ENV VIRTUAL_ENV=/app/.venv \
 
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
-COPY ./app ./app
+COPY ./chat_app ./chat_app
 COPY ./.chainlit ./.chainlit
 COPY chainlit.md ./
 
-CMD ["chainlit", "run", "app/app.py"]
+CMD ["chainlit", "run", "chat_app/app.py"]
