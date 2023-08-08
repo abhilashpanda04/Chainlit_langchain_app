@@ -13,13 +13,8 @@ import PyPDF2
 from io import BytesIO
 from dotenv import load_dotenv
 import sys
-from chainlit import user_session
 
 sys.path.append(os.path.abspath('.'))
-
-cl.user_session.get("env")
-# user_env.get("OPENAI_API_KEY")
-# os.environ["OPENAI_API_KEY"] = user_env.get("OPENAI_API_KEY")
 
 
 #load it from a .env file
@@ -58,8 +53,6 @@ Begin!
 {summaries}"""
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
-embeddings=OpenAIEmbeddings()
-
 
 messages=[
     SystemMessagePromptTemplate.from_template(system_template),
@@ -72,19 +65,19 @@ chain_type_kwargs={"prompt":prompt}
 
 def process_files(file:AskFileResponse):
     '''
-    load the data from a text or a pdf file
-    with the help of loader classes from langchain
-    for creating document which will be used to create
-    the document object
+    This is a function takes a file object as a parameter.
+    It checks the type of the file and assigns the appropriate loader class based on the file 
+    type (TextLoader for plain text files and PyPDFLoader for PDF files). It then creates a temporary 
+    file and writes the content of the input file to it.
+    The loader is initialized with the path to the temporary file and the document is loaded. 
+    The text_splitter is used to split the document into multiple documents.
+    Each document's metadata is updated with a source identifier.
+    Finally, the function returns the list of documents.
     '''
     import tempfile
-
-    if file.type=="text/plain":
-        Loader=TextLoader
-    elif file.type=="application/pdf":
-        Loader=PyPDFLoader
-
-    with tempfile.NamedTemporaryFile() as tempfile:
+    Loader = TextLoader if file.type == "text/plain" else PyPDFLoader
+    
+    with tempfile.NamedTemporaryFile(mode='wb') as tempfile:
         tempfile.write(file.content)
         loader=Loader(tempfile.name)
         document=loader.load()
@@ -92,13 +85,21 @@ def process_files(file:AskFileResponse):
         for i , doc in enumerate(docs):
             doc.metadata["source"]=f"source-{i}"
         return docs
-
+    
+    
+    
 def get_db(file:AskFileResponse):
     '''
-    get the vectorstore created.
-    
+    a function called get_db that takes a file parameter.
+    It creates an instance of the OpenAIEmbeddings class, 
+    processes the files using the process_files function, 
+    saves the processed data in the user session, and then creates a database using the Chroma.
+    from_documents method with the processed data and embeddings. 
+    Finally, it returns the created database.
     '''
     docs=process_files(file)
+
+    embeddings=OpenAIEmbeddings()
     
     #save data in user session
     cl.user_session.set("docs",docs)
@@ -110,8 +111,12 @@ def get_db(file:AskFileResponse):
 
 def load_only_pdf(file):
     '''
-    load only pdf with pypdf
-    
+    a function that takes a file object as input.
+    It uses the pypdf library to extract text from a PDF file.
+    The function reads the content of the file, creates a PdfReader object,
+    and iterates over each page of the PDF to extract the text
+    The extracted text is then split using a text_splitter 
+    and returned along with corresponding metadata.
     '''
     pdf_stream=BytesIO(file.content)
     pdf=PyPDF2.PdfReader(pdf_stream)
@@ -126,13 +131,17 @@ def load_only_pdf(file):
 
     return texts,metadatas
 
-
-
-
-
 @cl.on_chat_start
 async def on_chat_start():
-    # await cl.Message(content="hello there welcome to chainlit").send()
+    startup_message="""This project implements a question answering bot that can answer questions
+                based on PDF documents. The bot utilizes natural language processing and
+                machine learning techniques to extract relevant information from PDF files
+                and generate accurate answers to user queries."""
+    
+    await cl.Message(content=startup_message).send()
+
+    user_env = cl.user_session.get("env")
+    os.environ["OPENAI_API_KEY"] = user_env.get("OPENAI_API_KEY")
     
     files=None
     
@@ -187,11 +196,14 @@ async def on_chat_start():
 @cl.on_message
 async def main(message:str):
     '''
-    Executes ones the file is loaded
+    an asynchronous function called main that is executed when a message is received. 
+    It retrieves a "chain" from a user session and creates an instance of AsyncLangchainCallbackHandler with certain settings.
+    It then makes a call to the chain with the received message and a callback.
+    The result is stored in res and the answer and sources are extracted from it. 
+    The code then retrieves metadata and sources from the user session and processes them to add source elements to the message.
+    Finally, depending on whether a final streamed answer is available or not,
+    it either updates the stream or sends a message with the answer and source elements.
     '''
-
-    # user_env = cl.user_session.get("env")
-    # os.environ["OPENAI_API_KEY"] = user_env.get("OPENAI_API_KEY")
 
     chain=cl.user_session.get("chain")
     cb=cl.AsyncLangchainCallbackHandler(
