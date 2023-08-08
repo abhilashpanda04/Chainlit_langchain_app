@@ -13,7 +13,7 @@ import PyPDF2
 from io import BytesIO
 from dotenv import load_dotenv
 import sys
-from prompt import system_template
+from app.prompt import system_template
 
 sys.path.append(os.path.abspath('.'))
 
