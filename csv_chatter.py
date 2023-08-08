@@ -9,11 +9,6 @@ import sys
 
 sys.path.append(os.path.abspath('.'))
 
-
-
-llm=OpenAI()
-
-
 def create_csv_agent(data: pd.DataFrame, llm):
     return create_pandas_dataframe_agent(llm,data,verbose=False)
 
@@ -47,14 +42,18 @@ async def on_chat_start():
 @cl.on_message
 async def main(message: str):
 
-    res = await cl.AskUserMessage(content="please provide you openai api key?", timeout=10).send()
-    if res:
-        await cl.Message(
-            content=f"received your open ai api key",
-        ).send()
-    #get data
+    
+    startup_message="""This project implements a question answering bot that can answer questions
+            based on PDF documents. The bot utilizes natural language processing and
+            machine learning techniques to extract relevant information from PDF files
+            and generate accurate answers to user queries."""
+    
+    await cl.Message(content=startup_message).send()
+    
+    user_env = cl.user_session.get("env")
+    os.environ["OPENAI_API_KEY"] = user_env.get("OPENAI_API_KEY")
 
-    # os.environ["OPENAI_API_KEY"] = res['content']
+    llm=OpenAI()
 
     df=cl.user_session.get("data")
 
